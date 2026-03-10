@@ -1,49 +1,90 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-// 1. Setup Scene
+// --- 1. THE ARENA SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0a);
-scene.fog = new THREE.FogExp2(0x0a0a0a, 0.05); // Cinematic Fog
-
-// 2. Camera
+scene.background = new THREE.Color(0x050505);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('game-container').appendChild(renderer.domElement);
+document.body.appendChild(renderer.domElement);
 
-// 3. Perfect Models: The Arena
-const floorGeo = new THREE.PlaneGeometry(100, 100);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
+// Perfect Models: 3D Grid Floor
+const grid = new THREE.GridHelper(100, 50, 0xff4757, 0x222222);
+scene.add(grid);
 
-// Add a glowing "Duel Ring" in the center
-const ringGeo = new THREE.TorusGeometry(10, 0.1, 16, 100);
-const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4757 });
-const ring = new THREE.Mesh(ringGeo, ringMat);
-ring.rotation.x = Math.PI / 2;
-scene.add(ring);
-
-// 4. Lights
-const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambient);
-const spot = new THREE.PointLight(0xff4757, 100, 50);
-spot.position.set(0, 10, 0);
-scene.add(spot);
-
-// 5. Controls
+// --- 2. MOVEMENT & CONTROLS ---
 const controls = new PointerLockControls(camera, document.body);
-document.getElementById('start-btn').addEventListener('click', () => {
-    controls.lock();
-    document.getElementById('menu').style.opacity = '0';
+const keys = {};
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+
+window.addEventListener('keydown', (e) => keys[e.code] = true);
+window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+// --- 3. MOBILE JOYSTICK LOGIC ---
+// If touch is detected, we create a virtual joystick overlay
+if ('ontouchstart' in window) {
+    const joyZone = document.createElement('div');
+    joyZone.style = "position:fixed; bottom:50px; left:50px; width:120px; height:120px; background:rgba(255,255,255,0.1); border-radius:50%; border:2px solid #ff4757;";
+    document.body.appendChild(joyZone);
+    // (Logic for touch events would update the 'keys' object)
+}
+
+// --- 4. MULTIPLAYER (PEERJS) ---
+const peer = new Peer(); // Generates a random ID for "Same Network" discovery
+let conn;
+
+peer.on('open', (id) => {
+    console.log('Your Duel ID is: ' + id);
+    document.getElementById('stats').innerText = "ID: " + id;
 });
 
-// Animation Loop
+// HOSTING: Waiting for friend to join
+peer.on('connection', (c) => {
+    conn = c;
+    setupDataSync();
+});
+
+// JOINING: Connecting to friend
+function joinMatch(friendId) {
+    conn = peer.connect(friendId);
+    setupDataSync();
+}
+
+function setupDataSync() {
+    conn.on('data', (data) => {
+        // Here we update the "Enemy" model's position in 3D space
+        enemyModel.position.set(data.x, data.y, data.z);
+    });
+}
+
+// --- 5. THE GAME LOOP ---
 function animate() {
     requestAnimationFrame(animate);
+
+    if (controls.isLocked || 'ontouchstart' in window) {
+        // 3D Physics & Friction
+        velocity.x -= velocity.x * 10.0 * 0.01; // Friction
+        velocity.z -= velocity.z * 10.0 * 0.01;
+
+        direction.z = Number(keys['KeyW']) - Number(keys['KeyS']);
+        direction.x = Number(keys['KeyD']) - Number(keys['KeyA']);
+        direction.normalize();
+
+        if (keys['KeyW'] || keys['KeyS']) velocity.z -= direction.z * 400.0 * 0.01;
+        if (keys['KeyA'] || keys['KeyD']) velocity.x -= direction.x * 400.0 * 0.01;
+
+        controls.moveRight(-velocity.x * 0.01);
+        controls.moveForward(-velocity.z * 0.01);
+        
+        // Syncing: Send your position to your friend 60 times a second
+        if (conn && conn.open) {
+            conn.send({ x: camera.position.x, y: camera.position.y, z: camera.position.z });
+        }
+    }
+
     renderer.render(scene, camera);
 }
 animate();
-
+            

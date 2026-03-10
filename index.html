@@ -2,21 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sovereign MVSD | Production</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sovereign MVSD | Production Prototype</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
+
     <div id="ui-layer">
-        <div id="crosshair">+</div>
-        <div id="stats">HP: 100 | AMMO: 6</div>
+        <div id="hud">
+            <div id="stats">STATUS: INITIALIZING...</div>
+            <div id="my-id">YOUR ID: ---</div>
+        </div>
+
+        <div id="crosshair"></div>
+
         <div id="menu">
             <h1>MVSD DUELS</h1>
-            <button id="start-btn">ENTER ARENA</button>
+            <p>Share your ID with a friend to start the duel.</p>
+            <button id="start-btn">HOST MATCH (PC)</button>
+            <div class="divider">OR</div>
+            <input type="text" id="join-id" placeholder="Paste Friend's ID here">
+            <button id="join-btn">JOIN MATCH</button>
+            <p style="font-size: 10px; margin-top: 15px;">Mobile: Use the RED button to shoot.</p>
         </div>
     </div>
 
-    <div id="game-container"></div>
+    <button id="mobile-fire">FIRE</button>
 
     <script type="importmap">
         {
@@ -29,3 +41,4 @@
     <script type="module" src="game.js"></script>
 </body>
 </html>
+
